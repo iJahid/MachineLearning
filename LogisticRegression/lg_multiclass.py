@@ -3,9 +3,10 @@ from matplotlib import pyplot as plt
 # dataset made by 8x8 pxl of 1797 images of digits
 from sklearn.datasets import load_digits
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 
 from sklearn.linear_model import LogisticRegression
-
+import seaborn as sbn
 digit = load_digits()
 # dir(digit)) =['DESCR', 'data', 'feature_names', 'frame', 'images', 'target', 'target_names']
 
@@ -32,3 +33,13 @@ print(mdl.score(x_test, y_test))
 predicted_image_index = mdl.predict([digit.data[67]])
 print(predicted_image_index)
 print(digit.target[predicted_image_index])
+
+# cosfusion Matrix for check existing with prediciton
+y_predict = mdl.predict(x_test)
+d = confusion_matrix(y_test, y_predict)
+print(d)
+plt.figure(figsize=(10, 7))
+sbn.heatmap(d, annot=True)
+plt.xlabel = "Predicted"
+plt.ylabel = "Actual"
+plt.show()
