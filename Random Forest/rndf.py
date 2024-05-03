@@ -20,10 +20,19 @@ X_tr, X_test, Y_tr, Y_test = train_test_split(
 df['target'] = digits.target
 print(len(X_test.values[0]))
 
+to_predict = 98
 
-model = RandomForestClassifier(n_estimators=90)  # number of trees
+model = RandomForestClassifier(
+    n_estimators=200)  # number of trees
 model.fit(X_tr, Y_tr)
 print(model.score(X_test, Y_test))
 y_perdict = model.predict([X_test.values[to_predict]])
 
 print('Predicted ', y_perdict, 'acutal :', Y_test[to_predict])
+y_perdict = model.predict(X_test)
+cm = confusion_matrix(Y_test, y_perdict)
+plt.figure(figsize=(10, 7))
+sn.heatmap(cm, annot=True)
+plt.xlabel('Predicted')
+plt.ylabel('Truth')
+plt.show()
