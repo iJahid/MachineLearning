@@ -3,8 +3,9 @@ from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 df = pd.read_csv('insurance_data.csv')
-print(df.head)
-
+df1 = [10, 20, 30]
+print(df1, df1[1:3])
+print(df.shape[0], df.shape[1])
 plt.scatter(df.age, df.bought_insurance, marker='+', color='blue')
 plt.show()
 
