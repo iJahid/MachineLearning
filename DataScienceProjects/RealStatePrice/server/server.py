@@ -21,7 +21,7 @@ def get_location_names():
     return response
 
 
-@app.route('/get_est_price', methods=['POST'])
+@app.route('/get_est_price', methods=['POST', 'GET'])
 def get_est_price():
     # 'ramamurthy nagar', 2100, 2, 3
     r1 = request.form
