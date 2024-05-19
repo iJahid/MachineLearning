@@ -16,7 +16,7 @@ eye_cascade = cv2.CascadeClassifier(
 def get_cropped_2_eyes(filename):
     img = cv2.imread(filename)
 
-    gr = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gr = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     faces = face_cascade.detectMultiScale(gr, 1.3, 5)
 
@@ -62,6 +62,7 @@ for img_d in img_dirs:
         pass
     else:
         print(celeb_name)
+        celeb_file_names[celeb_name] = []
         for entry in os.scandir(img_d):
             # print(entry.path)
             roi_color = get_cropped_2_eyes(entry.path)

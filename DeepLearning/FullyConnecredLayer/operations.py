@@ -90,6 +90,105 @@ def convolution(X, filters, biases, stride, padding):
     # Return a dictionary with the output and the cache
     return {'output': out, 'cache': cache}
 
+# Convolution Backprop
+# This procedure computes the gradients of the cost w.r.t. the filters (dL/dW), the biases (dL/db), and the input batch (dL/dX).
+# The gradients of the cost w.r.t. the input batch, dL/dX, is returned as an output to continue the Backpropagation.
+# Summarizing, the following gradients are returned in the order: dL/dW, dL/db, dL/dX.
+#
+# Parameters:
+# Input     input_shape:    Input shape of the feature maps -- The format of the input shape is (c, h, w)
+# Input     filters:        Filters used in the convolution Forward Pass
+# Input     stride:         Stride used in the convolution Forward Pass
+# Input     biases:         Biases vector
+# Input     dZ:             dL/dZ -- The upstream gradients dL/dA back-propagated through the activation unit
+# Input     X_pad:          Batch of the padded input feature maps X
+# Input     padding:        Thickness of the zero-padding boundary applied to the feature maps in X
+# Input     upstream_grad:  Upstream batch containing the gradients of the cost w.r.t. the activation of this layer: dL/dA
+# Output    The gradients of the cost w.r.t. the filters -- dL/dW
+# Output    The gradients of the cost w.r.t. the biases -- dL/db
+# Output    The gradients of the cost w.r.t. the input batch X: dL/dX -- this can be seen as dL/dA for the previous layer.
+
+
+def convolution_backprop(input_shape, filters, stride, biases, dZ, X_pad, padding, upstream_grad):
+
+    # Extract the number of filters
+    num_filters = filters.shape[0]
+
+    # Extract the filter size
+    filter_size = filters.shape[2]
+
+    # Initialize to zeros the gradient of the cost w.r.t. the filters: dL/dW -- let's call it 'grad_filters'
+    # Note: dL/dW (grad_filters) must have the same dimensions of the filters volume
+    grad_filters = np.zeros_like(filters)
+
+    # Initialize to zeros the gradient of the cost w.r.t. the biases: dL/db -- let's call it 'grad_biases'
+    # Note: dL/db (grad_biases) must have the same dimensions of the biases vector
+    grad_biases = np.zeros_like(biases)
+
+    # Initialize to zeros the gradient of the cost w.r.t. the input X of this layer: dL/dX -- let's call it 'grad_input'
+    # Note: dL/dX (grad_input) must have the same dimensions of the original input volume X
+    # However, for the intermediate calculations, it is fundamental to consider the padding which was applied X!
+    grad_input = np.zeros_like(X_pad)
+
+    # In order to compute the gradients, we need to extract the batch size 'm', the output height and the output width.
+    # Hint: the output shape was saved in the cache, but we could also read it from 'upstream_gradient' (dA) or from 'dZ', because:
+    # - The dimensions of the layer's activation (A) are the same of 'upstream_gradient' (dA).
+    # - The dimensions of dA are the same of the intermediate gradient dZ (which we consider the new upstream gradient).
+    m = dZ.shape[0]
+    out_h = dZ.shape[2]
+    out_w = dZ.shape[3]
+
+    # Define some convenient variables with short names to simplify formulas
+    s = stride
+    f = filter_size
+
+    for b in range(m):  # loop over the input examples of the batch
+        for c in range(num_filters):  # loop over the number of filters (= output channels)
+            for i in range(out_h):  # loop over the rows of the output volume
+                for j in range(out_w):  # loop over the columns of the output volume
+                    # Identify the current 3D window of the input gradient dX:
+                    # The current 3D window of the input gradient dX is defined by (i, j), the stride s, and the filter size f.
+                    # Note: the current 3D window of dX has the same dimensions of a filter.
+                    # According to the backprop formulas, we must do the following:
+                    # 1. Multiply the current filter by the current upstream gradient element dZ(b, c, i, j), which is a scalar.
+                    # 2. Take the result of 1. and add it to the 3D window of the input gradient dX.
+                    # Note: the 3D window of dX and the filter multiplied by the upstream gradient element dZ(b, c, i, j) have the same dimensions. Therefore, we can add them together.
+                    # Hint: use the colon indexer (:) to select all channels of the 3D window of dX (grad_input)
+                    grad_input[b, :, i*s: i*s+f, j*s: j *
+                               s+f] += filters[c] * dZ[b, c, i, j]
+
+                    # According to the backprop formulas, the gradient w.r.t. a specific filter is computed as follows:
+                    # First, we have to identify the current 3D window of the padded input X_pad that was used in the Forward Pass.
+                    # The current 3D window of X_pad can be found in the same way we did for dX.
+                    # We multiply the 3D window of X_pad with the current upstream gradient element dZ(b, c, i, j)
+                    # Note: dZ(b, c, i, j) is a scalar (a number)
+                    # Then, we add the result to the gradient for the current filter.
+                    grad_filters[c] += X_pad[b, :, i*s: i *
+                                             s+f, j*s: j*s+f] * dZ[b, c, i, j]
+
+            # According to the backprop formulas, the gradient w.r.t. a specific bias is computed as follows:
+            # First, we have to take the 2D slice of the upstream gradient (dZ) identified by the current batch-index b and the current output channel c.
+            # Then, we have to sum all the elements of this 2D slice, obtaining a scalar value (i.e., a number).
+            # Finally, we add the obtained scalar to the current bias.
+            # Note: since the number of biases is equal to the number of filters, the current bias is identified by 'c'.
+            # Be careful: according to the backprop formulas, since we are summing entire 2D windows of the upstream gradient,
+            # and we are doing this for each example b of the batch, the magnitude of the gradients w.r.t. the biases is kind of
+            # multiplied by a factor 'm' (batch size). Therefore, when we are finished summing the contributing 2D windows,
+            # we must divide dL/db by m to get the mean bias gradient over the batch.
+            grad_biases[c] += np.sum(dZ[b, c])
+
+    # Compute the mean dL/db over the batch
+    grad_biases /= m
+
+    # At this point, the gradients dL/dW, dL/b and dL/dX have been computed.
+    # There is still one step to do: for the calculations, we had to consider the padded input 'X_pad'.
+    # As a result, the height and width of dL/dX (grad_input) might be larger than the original height and width of X!
+    # The gradient elements that we have computed for the padding boundary turn out to be useless information.
+    # We can easily get rid of them: use range indexing to exclude the padding and return the significant part of 'grad_input'
+    # The significant part of grad_input must have the same dimensions of the original input batch X.
+    # Use the internal variable 'input_shape' to retrieve the original height and width of X.
+    return grad_filters, grad_biases, grad_input[:, :, padding:input_shape[1] + padding, padding:input_shape[2] + padding]
+
 # Max Pooling operation
 #
 # Parameters:
@@ -137,55 +236,6 @@ def max_pooling(X, pool_size, stride):
     cache = (X, pool_size, stride)
 
     return {"output": output, "cache": cache}
-
-# Max Pooling operation
-#
-# Parameters:
-# Input     X:          Batch of m feature maps, each of size (in_c, in_h, in_w)
-# Input     pool_size:  Pooling window size
-# Input     stride:     The pooling stride that we use to slide the pooling window over the input feature map
-# Output    Tuple containing the output downsampled feature map, and a cache of useful information
-
-
-def max_pooling(X, pool_size, stride):
-
-    # Retrieve the dimensions of the input volume X
-    (m, in_c, in_h, in_w) = X.shape
-
-    # Calculate the dimensions of the output volume
-    # Note: pooling is applied to each channel of the input feature maps independently
-    # Therefore, the height and width decrease, but the number of channels does not vary
-    out_c = in_c
-    out_h = int(1 + (in_h - pool_size) / stride)
-    out_w = int(1 + (in_w - pool_size) / stride)
-
-    # Initialize output volume with zeros
-    output = np.zeros((m, out_c, out_h, out_w))
-
-    for i in range(m):  # loop over the input feature maps
-        for c in range(out_c):  # loop over the channels of the output volume
-            for h in range(out_h):  # loop on the vertical axis of the output volume
-                for w in range(out_w):  # loop on the horizontal axis of the output volume
-
-                    # Identify the current window (2D) of the i-th input feature map
-                    # The window is defined by a vertical range (h_start -> h_end) and an horizontal range (w_start -> w_end)
-                    h_start = h * stride
-                    h_end = h_start + pool_size
-                    w_start = w * stride
-                    w_end = w_start + pool_size
-
-                    # Extract the window of the current feature map (i), in the current channel (c)
-                    input_window_2D = X[i, c, h_start:h_end, w_start:w_end]
-
-                    # The output value located at [i, c, h, w] is the maximum value of the window
-                    output[i, c, h, w] = np.max(input_window_2D)
-
-    # Cache the input, the pooling size and the stride
-    # These information will be useful during backprop
-    cache = (X, pool_size, stride)
-
-    return {"output": output, "cache": cache}
-
 
 # Max Pooling Backprop
 #
@@ -193,6 +243,8 @@ def max_pooling(X, pool_size, stride):
 # Input     upstream_grad:  Batch containing the gradients of the cost w.r.t the outputs of the pooling layer (dL/dA)
 # Input     cache:          The cache returned by the Max Pooling forward pass
 # Output    Batch containing the gradients of the cost w.r.t. the input feature maps (dL/dX)
+
+
 def max_pooling_backprop(upstream_grad, cache):
 
     # Retrieve the input batch X, the pooling size and the stride from the cache

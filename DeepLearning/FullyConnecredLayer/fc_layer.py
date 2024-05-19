@@ -2,9 +2,7 @@ import numpy as np
 from operations import convolution
 from activation_functions import Relu
 from layer import LayerBase
-
-# ---- YOUR TASK 1) STARTS HERE ----
-# You must complete the following Fully Connected Layer implementation
+from persistence import read_parameters, write_parameters
 
 
 class FullyConnectedLayer(LayerBase):
@@ -51,6 +49,45 @@ class FullyConnectedLayer(LayerBase):
 
         # Call the constructor of the ancestor class
         super().__init__(name)
+
+    def get_parameters(self):
+        return {
+            "layer_name": self.name,
+            "weights": self.weights,
+            "biases": self.biases
+        }
+
+    def set_parameters(self, parameters):
+        self.weights = parameters["weights"]
+        self.biases = parameters["biases"]
+
+    # ---- YOUR TASK 1) STARTS HERE ----
+
+    # Persist the parameters of this layer to disk
+    #
+    # Parameters:
+    # Input     folder:     Destination folder into which the parameters will be stored.
+    def persist(self, folder):
+
+        # Use the 'get_parameters' function to retrieve a ready-to-use dictionary containing the parameters
+        parameters = self.get_parameters()
+
+        # Store the parameters using the persistence functions which you implemented in the previous exercise
+        write_parameters(parameters, folder)
+
+    # Load the parameters of this layer from disk
+    #
+    # Parameters:
+    # Input     folder:     Source folder from which the parameters will be loaded.
+    def load(self, folder):
+
+        # Load the parameters using the persistence functions which you implemented in the previous exercise
+        parameters = read_parameters(folder, self.name)
+
+        # Use the 'set_parameters' function to set the loaded parameters
+        self.set_parameters(parameters)
+
+    # ---- YOUR TASK 1) ENDS HERE ----
 
     # Forward Pass
     #
@@ -139,6 +176,11 @@ class FullyConnectedLayer(LayerBase):
     # Parameters:
     # Input     learning_rate:  Learning rate used for Gradient Descent
     def update_parameters(self, learning_rate):
-        self.weights -= learning_rate * self.grad_weights
-        self.biases -= learning_rate * self.grad_biases
-# ---- YOUR TASK 1) ENDS HERE ----
+
+        # ---- YOUR TASK 2) STARTS HERE ----
+
+        if not self.frozen:
+            self.weights -= learning_rate * self.grad_weights
+            self.biases -= learning_rate * self.grad_biases
+
+        # ---- YOUR TASK 2) ENDS HERE ----
